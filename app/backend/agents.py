@@ -1,64 +1,50 @@
 # backend/agents.py
-import autogen
+
+from autogen import AssistantAgent, UserProxyAgent
+from core.activity_agent import run_activity_agent
+from core.sleep_agent import run_sleep_agent
+from core.health_summary_agent import run_summary_agent
+from core.stress_agent import run_stress_agent
+from core.abnormaly_agent import run_anomaly_agent
+from core.nutrition_agent import run_nutrition_agent
 
 def setup_agents(llm_config):
-    """Initializes agents for the Health Management MVP."""
+    """
+    Initializes all GPT-powered assistant agents and user proxy agent.
+    """
 
-    # === Define Health Agents ===
-
-    nutrition_agent = autogen.AssistantAgent(
-        name="NutritionAgent",
-        llm_config=llm_config,
-        system_message="""You are a Nutrition Advisor.
-        Based on the user's profile (age, sex, weight, height, health goals like weight loss/gain, muscle gain) and their recent food intake log provided, generate concise and actionable dietary suggestions for their next meal or day.
-        Focus on healthy choices aligning with their goals. Provide 2-3 concrete suggestions.
-        Output only the suggestions. Do not ask follow-up questions in your response. Start directly with the suggestions.
-        Example Input: "Profile: Male, 35, 85kg, 175cm, goal: weight loss. Log: Breakfast-Oatmeal, Lunch-Chicken Salad".
-        Example Output:
-        - For dinner, consider grilled fish with steamed vegetables to stay on track with your weight loss goal.
-        - Ensure adequate water intake throughout the day.
-        - If snacking, opt for fruits or a small handful of nuts instead of processed snacks.
-        """,
+    # GPT Assistant Agents
+    activity_agent = AssistantAgent(name="ActivityAgent", llm_config=llm_config)
+    sleep_agent = AssistantAgent(name="SleepAgent", llm_config=llm_config)
+    stress_agent = AssistantAgent(name="StressAgent", llm_config=llm_config)
+    health_summary_agent = AssistantAgent(
+        name="HealthSummaryAgent",
+        system_message="You summarize health based on activity and sleep insights. Provide 1–2 lines of summary and 1 clear suggestion for tomorrow. Be concise and encouraging.",
+        llm_config=llm_config
     )
+    abnormaly_detection_agent = AssistantAgent(name="AbnormalyDetectionAgent", llm_config=llm_config)
+    nutrition_agent = AssistantAgent(name="NutritionAgent", llm_config=llm_config)
 
-    exercise_calc_agent = autogen.AssistantAgent(
-        name="ExerciseCalcAgent",
-        llm_config=llm_config,
-        system_message="""You are an Exercise Analyst.
-        Based on the user's profile (age, weight can be helpful) and their description of physical activity performed today (e.g., 'walked 30 minutes', 'ran 5km', 'did 3 sets of pushups'), provide a brief summary of the activity level and an estimated calorie expenditure (provide a rough range, e.g., 200-300 kcal).
-        Keep the summary positive and encouraging.
-        Output only the summary. Do not ask follow-up questions. Start directly with the summary.
-        Example Input: "Profile: Female, 40, 65kg. Activity: brisk walk for 45 minutes, 15 minutes stretching".
-        Example Output: "Great job on your 45-minute brisk walk and stretching today! This represents a moderate activity level. Estimated calorie expenditure for today's activities is likely in the range of 250-350 kcal."
-        """,
-    )
+    # User Proxy
+    user_proxy = UserProxyAgent(name="UserProxy", human_input_mode="NEVER")
 
-    target_exercise_agent = autogen.AssistantAgent(
-        name="TargetExerciseAgent",
-        llm_config=llm_config,
-        system_message="""You are a Fitness Planner.
-        Based on the user's profile (age, sex, current activity level inferred from log/calculator agent, health goals like weight loss, muscle gain, maintain health), suggest a realistic and specific target exercise goal for the *next day*.
-        Consider general fitness guidelines. The goal should be actionable.
-        Output only the suggestion. Do not ask follow-up questions. Start directly with the suggestion.
-        Example Input: "Profile: Male, 50, sedentary job, goal: improve cardiovascular health. Current activity: Occasional short walks".
-        Example Output: "For tomorrow, aim for a brisk walk of at least 25-30 minutes. This will be a good step towards improving your cardiovascular health."
-        """,
-    )
+    return {
+        # Core agents (functions)
+        "activity_agent": run_activity_agent,
+        "sleep_agent": run_sleep_agent,
+        "stress_agent": run_stress_agent,
+        "health_summary_agent": run_summary_agent,
+        "abnormaly_detection_agent": run_anomaly_agent,
+        "nutrition_agent": run_nutrition_agent,
 
-    # === User Proxy Agent ===
-    user_proxy = autogen.UserProxyAgent(
-        name="User_Proxy",
-        human_input_mode="NEVER",
-        max_consecutive_auto_reply=10, # Should be enough for 3 sequential chats
-        is_termination_msg=lambda x: True, # Terminate after each agent's response in sequential chat
-        code_execution_config=False, # No code execution needed for this MVP
-    )
+        # GPT model instances (LLMs)
+        "activity_llm": activity_agent,
+        "sleep_llm": sleep_agent,
+        "stress_llm": stress_agent,
+        "health_summary_llm": health_summary_agent,
+        "abnormaly_detection_llm": abnormaly_detection_agent,
+        "nutrition_llm": nutrition_agent,
 
-    # === Return Agents ===
-    # Order matters for unpacking in app.py
-    return (
-        nutrition_agent,
-        exercise_calc_agent,
-        target_exercise_agent,
-        user_proxy
-    )
+        # Shared Proxy
+        "user_proxy": user_proxy
+    }

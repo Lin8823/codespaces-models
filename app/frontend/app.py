@@ -1,113 +1,171 @@
-# frontend/app.py
 import streamlit as st
 import requests
 import traceback
-import time
+from datetime import datetime
+import json
 
-# --- Configuration ---
-# Point to the NEW backend endpoint
-BACKEND_URL = "http://localhost:5001/get_health_advice"
+import sys
+import os
 
-# --- Streamlit App Layout ---
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'backend')))
+from database import safe_json_encoder, write_user, write_activity_sleep_stress_data, get_all_user_list
+
+BACKEND_URL = "http://localhost:5001"
+
 st.set_page_config(layout="wide")
-
-st.title("🏠 Smart Home Health Advisor (MVP)")
-st.markdown("""
-Describe your profile, health goals, and today's food/activity below.
-The AI agents will provide personalized suggestions.
-*(MVP uses text input to simulate data from smart devices)*
-""")
-
-# --- Input Area ---
-default_input = """Example:
-Profile: Female, 45, 70kg, 165cm, Goal: Maintain weight, feel more energetic.
-Today's Log:
-- Food: Coffee(B), Salad w/ grilled chicken(L), Apple(Snack), Planning pasta for dinner.
-- Activity: Walked dog for 20 minutes, felt tired during work.
-- Other: Slept about 6 hours last night."""
-
-user_input_text = st.text_area(
-    "Your Profile, Goals, and Today's Log:",
-    height=250,
-    placeholder="Enter details like age, sex, weight, height, goals, food eaten, activity done, sleep, mood etc.",
-    value=default_input # Provide a default example
-)
-
-# --- Submit Button ---
-if st.button("💬 Get Health Advice"):
-    if user_input_text and user_input_text != default_input and len(user_input_text) > 20: # Basic check
-        # Use columns for better layout during processing
-        col1, col2 = st.columns([1, 5])
-        with col1:
-            st.info("🧠 Thinking...")
-        with col2:
-            status_text = st.empty()
-            progress_bar = st.progress(0)
-
-        try:
-            status_text.text("Sending information to AI agents...")
-            progress_bar.progress(25)
-            start_time = time.time()
-
-            # Prepare JSON payload
-            payload = {"user_input": user_input_text}
-
-            # Send POST request with JSON data
-            response = requests.post(BACKEND_URL, json=payload, timeout=180) # 3 min timeout
-
-            end_time = time.time()
-            status_text.text(f"AI agents responded in {end_time - start_time:.2f} seconds.")
-            progress_bar.progress(75)
-
-            response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
-
-            # --- Handle Response ---
-            result_data = response.json()
-            recommendation = result_data.get("recommendation", "No recommendation received.")
-            alerts = result_data.get("alerts", [])
-
-            st.success("✅ Advice Generated!")
-            progress_bar.progress(100)
-            status_text.text("Finished.")
-
-            # Display Alerts First (if any)
-            if alerts:
-                 st.error("🚨 Important Alerts:")
-                 for alert in alerts:
-                      st.warning(alert) # Use warning style for alerts
-
-            # Display Recommendation
-            st.subheader("Personalized Suggestions:")
-            st.markdown(recommendation) # Use markdown to render formatting
+st.title("🧘‍♀️ Smart Health Insights")
+st.markdown("Select a user profile or enter your sensor data for analysis.")
 
 
-        except requests.exceptions.Timeout:
-             st.error("❌ Timeout Error: The request to the backend timed out.")
-             status_text.text("Error: Request timed out.")
-             progress_bar.progress(100)
-        except requests.exceptions.ConnectionError:
-             st.error(f"❌ Connection Error: Could not connect to the backend at {BACKEND_URL.replace('/get_health_advice','')}." )
-             st.info("Please ensure the backend server is running.")
-             status_text.text("Error: Connection failed.")
-             progress_bar.progress(100)
-        except requests.exceptions.RequestException as e:
-            st.error("❌ Request Error: An error occurred communicating with the backend.")
-            error_msg = f"Details: {e}"
-            try: # Try to get specific error from backend JSON response
-                 error_detail = e.response.json()
-                 error_msg += f" | Backend msg: {error_detail.get('error', 'N/A')}"
-            except: pass
-            st.error(error_msg)
-            status_text.text(f"Error: {e}")
-            progress_bar.progress(100)
-        except Exception as e:
-            st.error(f"An unexpected error occurred in the frontend: {e}")
-            traceback.print_exc()
-            status_text.text("Frontend Error.")
-            progress_bar.progress(100)
-    else:
-         st.warning("Please enter your details in the text area above.")
+default_users = get_all_user_list()
+user_names = default_users + ["New User"]
+selected_default_user_name = st.selectbox("Choose a User Profile:", user_names)
+
+user_data = {}
+
+if selected_default_user_name == "New User":
+    with st.expander("Enter User Info"):
+        st.subheader("Basic User Information")
+        user_info = {
+            "name": st.text_input("Name"),
+            "gender": st.selectbox("Gender", ["Male", "Famale", "Prefer Not to Say"], index=0),
+            "age": st.number_input("Age", min_value=1, max_value=110),
+            "weight": st.number_input("Weight (kg)", min_value=1, max_value=70),
+            "height": st.number_input("Height (cm)", min_value=10, max_value=240),
+            "job": st.text_input("Job"),
+            "activity_level":st.selectbox("activity_level", ["High", "Moderate", "Low"], index=0),
+            "disease_history": st.text_input("disease_history"),
+            "location": st.text_input("Location"),
+        }
+        if st.button("Submit User Info"):
+            print("user_info", user_info)
+            # create new user data
+            write_user(user_info)
+            st.success("✅ User info saved successfully!")
+        
+with st.expander("Enter Sensor Data"):
+    st.subheader("Activity Data")
+    user_data["activity"] = {
+        "acceleration": st.text_input("Activity Acceleration (e.g., 0.1, 0.1, 0.1)", value='[[2.0, 1.5, -9.8], [1.8, 2.0, -8.5], [2.2, 1.2, -10.1], [1.7, 2.3, -8.9], [2.1, 1.6, -9.7]]'),
+        "time": st.selectbox("Activity Time", ["morning", "afternoon", "evening"], index=0),
+        "weight": st.number_input("Weight (kg)", min_value=1.0, value=70.0),
+        "duration": st.number_input("Activity Duration (minutes)", min_value=1, value=30),
+        "created_at": str(datetime.now())
+    }
+    st.subheader("Sleep Data")
+    user_data["sleep"] = {
+        "heart_rate": st.number_input("Heart Rate (bpm)", min_value=1, value=60),
+        "hrv": st.number_input("HRV (ms)", min_value=1, value=80),
+        "skin_temperature": st.number_input("Temperature (°C)", value=36.5),
+        "acceleration": st.text_input("Sleep Acceleration (e.g., 0.1, 0.1, 0.1)", value='[[2.0, 1.5, -9.8], [1.8, 2.0, -8.5], [2.2, 1.2, -10.1], [1.7, 2.3, -8.9], [2.1, 1.6, -9.7]]'),
+        "gsr": st.number_input("GSR (µS)", value=2.0),
+        "time_of_nith": st.selectbox("Sleep Time", ["early night", "late night", "early morning"], index=0),
+        "created_at": str(datetime.now())
+    }
+    st.subheader("Stress Data")
+    user_data["stress"] = {
+        "heart_rate": st.number_input("Stress HR (bpm)", min_value=1, value=70),
+        "skin_temperature": st.number_input("Stress Temp (°C)", value=36.7),
+        "eda": st.number_input("EDA (µS)", value=4.0),
+        "acceleration": st.text_input("Stress Acceleration (e.g., 0.1, 0.1, 0.1)", value='[[2.0, 1.5, -9.8], [1.8, 2.0, -8.5], [2.2, 1.2, -10.1], [1.7, 2.3, -8.9], [2.1, 1.6, -9.7]]'),
+        "created_at": str(datetime.now())
+    }
+        
 
 
-st.markdown("---")
-st.caption("Health Advisor MVP | Powered by AutoGen & Azure OpenAI")
+if st.button("Analyze Health Data"):
+    if user_data:
+
+        # write new sleep, stress and activity data
+        for data_type in ["sleep", "stress", "activity"]:
+            print("selected_default_user_name", selected_default_user_name)
+            write_activity_sleep_stress_data(name=selected_default_user_name, data_type=data_type, new_user_data=user_data[data_type])
+
+        activity_result = None
+        sleep_result = None
+        stress_result = None
+
+        with st.spinner("Analyzing Activity Data..."):
+            try:
+                json_data = json.loads(json.dumps(user_data.get("activity", {}), default=safe_json_encoder))
+                response = requests.post(
+                    f"{BACKEND_URL}/analyze_activity", json=json_data, timeout=60)
+                response.raise_for_status()
+                activity_result = response.json().get("activity_analysis")
+                st.success("Activity Analysis Complete!")
+            except requests.exceptions.RequestException as e:
+                st.error(f"Error analyzing activity: {e}")
+                st.error(traceback.format_exc())
+
+        with st.spinner("Analyzing Sleep Data..."):
+            try:
+                json_data = json.loads(json.dumps(user_data.get("sleep", {}), default=safe_json_encoder))
+                response = requests.post(
+                    f"{BACKEND_URL}/analyze_sleep", json=json_data, timeout=60)
+                response.raise_for_status()
+                sleep_result = response.json().get("sleep_analysis")
+                st.success("Sleep Analysis Complete!")
+            except requests.exceptions.RequestException as e:
+                st.error(f"Error analyzing sleep: {e}")
+                st.error(traceback.format_exc())
+
+        with st.spinner("Analyzing Stress Data..."):
+            try:
+                json_data = json.loads(json.dumps(user_data.get("stress", {}), default=safe_json_encoder))
+                response = requests.post(
+                    f"{BACKEND_URL}/analyze_stress", json=json_data, timeout=60)
+                response.raise_for_status()
+                stress_result = response.json().get("stress_analysis")
+                st.success("Stress Analysis Complete!")
+            except requests.exceptions.RequestException as e:
+                st.error(f"Error analyzing stress: {e}")
+                st.error(traceback.format_exc())
+
+        if activity_result and sleep_result and stress_result:
+            with st.spinner("Detecting Anomalies..."):
+                anomaly_payload = {
+                    "stress_result": stress_result,
+                    "sleep_result": sleep_result,
+                    "activity_result": activity_result
+                }
+                try:
+                    response = requests.post(
+                        f"{BACKEND_URL}/detect_anomaly", json=anomaly_payload, timeout=60)
+                    response.raise_for_status()
+                    anomaly_analysis = response.json().get("anomaly_analysis")
+                    st.subheader("Anomaly Detection:")
+                    st.markdown(anomaly_analysis)
+                    st.success("Anomaly Detection Complete!")
+                except requests.exceptions.RequestException as e:
+                    st.error(f"Error detecting anomalies: {e}")
+                    st.error(traceback.format_exc())
+
+            with st.spinner("Generating Health Summary..."):
+                summary_payload = {
+                    "activity_data": json.loads(json.dumps(user_data.get("activity", {}), default=safe_json_encoder)),
+                    "sleep_data": json.loads(json.dumps(user_data.get("sleep", {}), default=safe_json_encoder)),
+                    "stress_data": json.loads(json.dumps(user_data.get("stress", {}), default=safe_json_encoder))
+                }
+
+                try:
+
+                    response = requests.post(
+                        f"{BACKEND_URL}/group_summary_chat", json=summary_payload, timeout=60)
+                    response.raise_for_status()
+                    group_summary = response.json().get("results").get("health_summary_result")
+                    st.subheader("Overall Health Summary & Recommendation:")
+                    st.markdown(group_summary)
+                    st.success("Health Summary Generated!")
+                except requests.exceptions.RequestException as e:
+                    st.error(f"Error generating health summary: {e}")
+                    st.error(traceback.format_exc())
+
+        if activity_result:
+            st.subheader("Activity Analysis Result:")
+            st.markdown(activity_result)
+        if sleep_result:
+            st.subheader("Sleep Analysis Result:")
+            st.markdown(sleep_result)
+        if stress_result:
+            st.subheader("Stress Analysis Result:")
+            st.markdown(stress_result)
