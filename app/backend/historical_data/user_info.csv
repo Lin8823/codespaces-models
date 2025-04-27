@@ -1,0 +1,5 @@
+id,name,Job,age,gender,height,weight,activity_level,disease_history,location,job
+1,Jack,Software Engineer,32,male,180,75,moderate,"['diabetes', 'heart_disease']",Taipei,
+2,Joe,Hardware Engineer,73,male,178,66,low,['lung cancer'],Boston,
+3,Emily,Data Scientist,45,female,170,60,high,['hypertension'],London,
+4,chia,,10,Male,100,10,High,,,

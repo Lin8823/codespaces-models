@@ -32,6 +32,7 @@ app = Flask(__name__)
 # Setup agents once at launch
 agents = setup_agents(llm_config)
 
+
 @app.route('/analyze_activity', methods=['POST'])
 def analyze_activity_route():
     data = request.get_json()
@@ -50,6 +51,7 @@ def analyze_sleep_route():
         return jsonify({"error": "Missing JSON payload"}), 400
     try:
         result = agents["sleep_agent"](data, agents["user_proxy"], agents["sleep_llm"])
+        print({"sleep_analysis": result})
         return jsonify({"sleep_analysis": result})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -72,12 +74,12 @@ def detect_anomaly_route():
     if not all(k in data for k in required_keys):
         return jsonify({"error": f"Missing one or more required fields: {required_keys}"}), 400
     try:
-        result = agents["anomaly_agent"](
+        result = agents["abnormaly_detection_agent"](
             data["stress_result"],
             data["sleep_result"],
             data["activity_result"],
             agents["user_proxy"],
-            agents["anomaly_llm"]
+            agents["abnormaly_detection_llm"]
         )
         return jsonify({"anomaly_analysis": result})
     except Exception as e:
