@@ -24,10 +24,9 @@ with open("profile.json", "r") as file:
 
 client = OpenAIChatCompletionClient(
     model="gpt-4o", 
-    api_key=os.environ["GITHUB_TOKEN"], 
-    base_url="https://models.inference.ai.azure.com"
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url=os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
 )
-
 
 sys_messages = """
     You are a professional nutritional manager.  

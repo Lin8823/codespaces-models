@@ -16,18 +16,18 @@ def render_menu(p_menu_options):
             for item in menu["item"]:
                 st.write(f"- {item['food']} ({item['calories']} kcal)")
             st.markdown(f"**Total Calories: {menu['total_calories']} kcal**")
-            st.markdown("---")
+    st.markdown("---")
             
 def draw_consumption_intake_chart():
     # 資料
     data = [
-        {'day': 1, 'consumption': 6, 'intake': 200},
-        {'day': 2, 'consumption': 7, 'intake': 400},
-        {'day': 3, 'consumption': 3, 'intake': 100},
-        {'day': 4, 'consumption': 5, 'intake': 253},
-        {'day': 5, 'consumption': 8, 'intake': 198},
-        {'day': 6, 'consumption': 9, 'intake': 211},
-        {'day': 7, 'consumption': 2, 'intake': 137},
+        {'day': 1, 'consumption': 120, 'intake': 200},
+        {'day': 2, 'consumption': 70, 'intake': 400},
+        {'day': 3, 'consumption': 93, 'intake': 100},
+        {'day': 4, 'consumption': 153, 'intake': 253},
+        {'day': 5, 'consumption': 88, 'intake': 198},
+        {'day': 6, 'consumption': 97, 'intake': 211},
+        {'day': 7, 'consumption': 200, 'intake': 137},
     ]
 
     # 將資料轉換為 DataFrame
@@ -76,7 +76,7 @@ def draw_sleep_chart():
         {'day': 7, 'time_in_bed': 2, 'bed_time': '22:00'},
     ]
     avg = 40 / 7  # 每日平均睡眠量
-    recommandation = 50 / 7  # 每日建議睡眠量
+    recommendation = 50 / 7  # 每日建議睡眠量
 
     # 將資料轉換為 DataFrame
     df = pd.DataFrame(data)
@@ -104,7 +104,7 @@ def draw_sleep_chart():
     # 折線圖：建議睡眠量
     fig.add_trace(go.Scatter(
         x=df['day'],
-        y=[recommandation] * len(df),
+        y=[recommendation] * len(df),
         mode='lines',
         name='Recommended Sleep',
         line=dict(color='green', dash='dash')
