@@ -1,7 +1,9 @@
 # backend/app.py
 
-import sys
+import asyncio
 import os
+import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
@@ -10,7 +12,7 @@ from backend.agents import setup_agents
 from backend.group_summary_chat import run_group_health_chat
 from core.activity_agent import run_activity_agent
 from core.sleep_agent import run_sleep_agent
-
+from agents_CHIA import run_agents
 # Load environment variables
 load_dotenv()
 
@@ -126,7 +128,21 @@ def group_health_chat():
         }), 500
 
 
-
+@app.route('/nutrition_management', methods=['POST'])
+def nutrition_agent():
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(run_agents()) 
+        return jsonify({
+            "status": "success",
+            "results": result
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e)
+        }), 500
 
 
 

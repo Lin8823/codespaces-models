@@ -28,6 +28,7 @@ client = OpenAIChatCompletionClient(
     base_url="https://models.inference.ai.azure.com"
 )
 
+
 sys_messages = """
     You are a professional nutritional manager.  
     1. Recommend a nutritionally balanced meal tailored to the user's age, gender, height, weight, activity level, disease history, dietary record and sleep condition.
@@ -98,33 +99,29 @@ meal_recommender_agent = AssistantAgent(
     output_content_type = MealRecommender,
     tools=[dietary_tool, sleep_tool],
     memory=[user_memory],
-    model_client=client  
+    model_client=client
 )
 
 
 
-async def run_agents():
-    print("Welcome to the Meal Recommender Chat!")
-    print("Type your message below. Type 'exit' to quit.\n")
 
-    global response
-    while True:
-        # 收集使用者輸入
-        user_input = input("You: ")
-        if user_input.lower() == "exit":
-            print("Exiting chat. Goodbye!")
-            break
+async def run_agents():
+    try:
         response = await meal_recommender_agent.on_messages(
             [TextMessage(content="Please recommend a meal plan.", source="user")],
             cancellation_token=CancellationToken(),
         )
-        print(response.chat_message.content)
-
         meal_options = (json.loads((response.chat_message.content).json())).get("meal_options")
+        print(f"Response received: {meal_options}")
+
+        # meal_option = [{'menu_name': 'Grilled Salmon Salad', 'item': [{'food': 'Grilled Salmon', 'calories': 250}, {'food': 'Mixed Green Salad with Olive Oil Dressing', 'calories': 150}, {'food': 'Quinoa', 'calories': 200}], 'total_calories': 600}, {'menu_name': 'Lentil Soup with Whole Grain Bread', 'item': [{'food': 'Lentil Soup', 'calories': 300}, {'food': 'Whole Grain Bread', 'calories': 150}, {'food': 'Steamed Broccoli', 'calories': 100}], 'total_calories': 550}, {'menu_name': 'Grilled Chicken Wrap', 'item': [{'food': 'Grilled Chicken Breast', 'calories': 200}, {'food': 'Whole Wheat Tortilla', 'calories': 150}, {'food': 'Vegetable Mix with Avocado', 'calories': 200}], 'total_calories': 550}]
+        # meal_option = [{'menu_name': 'Mediterranean Lentil Salad', 'item': [{'food': 'Cooked lentils', 'calories': 180}, {'food': 'Diced cucumbers', 'calories': 8}, {'food': 'Chopped parsley', 'calories': 5}, {'food': 'Crumbled feta cheese', 'calories': 80}, {'food': 'Olive oil and lemon dressing', 'calories': 50}], 'total_calories': 323}, {'menu_name': 'Turkey and Hummus Roll-Ups', 'item': [{'food': 'Whole wheat tortillas', 'calories': 150}, {'food': 'Sliced turkey breast', 'calories': 90}, {'food': 'Hummus', 'calories': 70}, {'food': 'Spinach leaves', 'calories': 10}], 'total_calories': 320}, {'menu_name': 'Quinoa and Black Bean Bowl', 'item': [{'food': 'Cooked quinoa', 'calories': 120}, {'food': 'Black beans', 'calories': 114}, {'food': 'Diced tomatoes', 'calories': 20}, {'food': 'Chopped avocados', 'calories': 80}, {'food': 'Fresh lime juice', 'calories': 10}], 'total_calories': 344}]
+        # meal_option = [{'menu_name': 'Tofu and Stir-Fry Vegetables', 'item': [{'food': 'Firm tofu (grilled)', 'calories': 120}, {'food': 'Stir-fried mixed vegetables (broccoli, carrots, peppers)', 'calories': 85}, {'food': 'Soy sauce (low sodium)', 'calories': 15}, {'food': 'Brown rice', 'calories': 215}], 'total_calories': 435}, {'menu_name': 'Grilled Salmon with Steamed Vegetables', 'item': [{'food': 'Grilled salmon fillet', 'calories': 200}, {'food': 'Steamed asparagus', 'calories': 20}, {'food': 'Steamed baby carrots', 'calories': 35}, {'food': 'Quinoa', 'calories': 110}], 'total_calories': 365}, {'menu_name': 'Vegetable Chickpea Curry', 'item': [{'food': 'Cooked chickpeas', 'calories': 180}, {'food': 'Sautéed spinach', 'calories': 85}, {'food': 'Curry sauce (light)', 'calories': 100}, {'food': 'Basmati rice', 'calories': 205}], 'total_calories': 570}]
+
         for meal_option in meal_options:
             await user_memory.add(MemoryContent(content=meal_option, mime_type=MemoryMimeType.TEXT))
-        print("Recommendation saved to memory.")
-        print(user_memory.content)
+        # print("Recommendation saved to memory.")
+        # print(user_memory.content)
 
         # await Console(
         #     meal_recommender_agent.on_messages_stream(
@@ -133,5 +130,9 @@ async def run_agents():
         #     ),
         #     output_stats=True,
         # )
+        return meal_options
+    except Exception as e:
+        print(f"Error in run_agents: {e}")  # 增加日誌
+        raise
 
-asyncio.run(run_agents())
+# asyncio.run(run_agents())
