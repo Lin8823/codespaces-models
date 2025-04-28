@@ -101,26 +101,19 @@ meal_recommender_agent = AssistantAgent(
     model_client=client
 )
 
-
-
-
-async def run_agents():
+async def run_nutrition_agents():
     try:
         response = await meal_recommender_agent.on_messages(
             [TextMessage(content="Please recommend a meal plan.", source="user")],
             cancellation_token=CancellationToken(),
         )
         meal_options = (json.loads((response.chat_message.content).json())).get("meal_options")
-        print(f"Response received: {meal_options}")
 
-        # meal_option = [{'menu_name': 'Grilled Salmon Salad', 'item': [{'food': 'Grilled Salmon', 'calories': 250}, {'food': 'Mixed Green Salad with Olive Oil Dressing', 'calories': 150}, {'food': 'Quinoa', 'calories': 200}], 'total_calories': 600}, {'menu_name': 'Lentil Soup with Whole Grain Bread', 'item': [{'food': 'Lentil Soup', 'calories': 300}, {'food': 'Whole Grain Bread', 'calories': 150}, {'food': 'Steamed Broccoli', 'calories': 100}], 'total_calories': 550}, {'menu_name': 'Grilled Chicken Wrap', 'item': [{'food': 'Grilled Chicken Breast', 'calories': 200}, {'food': 'Whole Wheat Tortilla', 'calories': 150}, {'food': 'Vegetable Mix with Avocado', 'calories': 200}], 'total_calories': 550}]
-        # meal_option = [{'menu_name': 'Mediterranean Lentil Salad', 'item': [{'food': 'Cooked lentils', 'calories': 180}, {'food': 'Diced cucumbers', 'calories': 8}, {'food': 'Chopped parsley', 'calories': 5}, {'food': 'Crumbled feta cheese', 'calories': 80}, {'food': 'Olive oil and lemon dressing', 'calories': 50}], 'total_calories': 323}, {'menu_name': 'Turkey and Hummus Roll-Ups', 'item': [{'food': 'Whole wheat tortillas', 'calories': 150}, {'food': 'Sliced turkey breast', 'calories': 90}, {'food': 'Hummus', 'calories': 70}, {'food': 'Spinach leaves', 'calories': 10}], 'total_calories': 320}, {'menu_name': 'Quinoa and Black Bean Bowl', 'item': [{'food': 'Cooked quinoa', 'calories': 120}, {'food': 'Black beans', 'calories': 114}, {'food': 'Diced tomatoes', 'calories': 20}, {'food': 'Chopped avocados', 'calories': 80}, {'food': 'Fresh lime juice', 'calories': 10}], 'total_calories': 344}]
-        # meal_option = [{'menu_name': 'Tofu and Stir-Fry Vegetables', 'item': [{'food': 'Firm tofu (grilled)', 'calories': 120}, {'food': 'Stir-fried mixed vegetables (broccoli, carrots, peppers)', 'calories': 85}, {'food': 'Soy sauce (low sodium)', 'calories': 15}, {'food': 'Brown rice', 'calories': 215}], 'total_calories': 435}, {'menu_name': 'Grilled Salmon with Steamed Vegetables', 'item': [{'food': 'Grilled salmon fillet', 'calories': 200}, {'food': 'Steamed asparagus', 'calories': 20}, {'food': 'Steamed baby carrots', 'calories': 35}, {'food': 'Quinoa', 'calories': 110}], 'total_calories': 365}, {'menu_name': 'Vegetable Chickpea Curry', 'item': [{'food': 'Cooked chickpeas', 'calories': 180}, {'food': 'Sautéed spinach', 'calories': 85}, {'food': 'Curry sauce (light)', 'calories': 100}, {'food': 'Basmati rice', 'calories': 205}], 'total_calories': 570}]
+        # print(f"Response received: {json.loads((response.chat_message.content).json())}")
+        # print(f"Response received: {meal_options}")
 
         for meal_option in meal_options:
             await user_memory.add(MemoryContent(content=meal_option, mime_type=MemoryMimeType.TEXT))
-        # print("Recommendation saved to memory.")
-        # print(user_memory.content)
 
         # await Console(
         #     meal_recommender_agent.on_messages_stream(
@@ -129,9 +122,57 @@ async def run_agents():
         #     ),
         #     output_stats=True,
         # )
-        return meal_options
+        return json.loads((response.chat_message.content).json())
     except Exception as e:
-        print(f"Error in run_agents: {e}")  # 增加日誌
+        print(f"Error in run_agents: {e}")
         raise
 
+
+
+def get_activity_data(query: str) -> str:
+    """Get User activity data."""
+    return "Average daily activity of 5000 steps and 300 calories burned in the past week."
+
+class ExerciseRecommendation(BaseModel):
+    recommended_exercise: str
+    duration_minutes: int
+    calories_to_burn: int
+    advice: str
+
+exercise_tool = FunctionTool(
+    get_activity_data,
+    description="Get activity condition.",
+    strict=True
+)
+
+exercise_recommender_agent = AssistantAgent(
+    name="ExerciseRecommender",
+    description="An assistant that recommends daily exercise based on activity and diet.",
+    system_message="""
+        You are a professional fitness assistant.
+        1. Based on the user's past week's activity data and today's meal plan, recommend an exercise plan.
+        2. Include the type of exercise, duration (in minutes), and estimated calories to burn.
+        3. Ensure the exercise plan aligns with the user's health goals and dietary intake.
+        4. Provide additional advice on maintaining a balanced lifestyle.
+    """,
+    output_content_type=ExerciseRecommendation,
+    tools=[exercise_tool],
+    memory=[user_memory],
+    model_client=client
+)
+
+async def run_atvacc_agent(p_selected_meal):
+    try:
+        print(f"Get User selected: {p_selected_meal}")
+        response = await exercise_recommender_agent.on_messages(
+            [TextMessage(content=f"Based on the meal: {p_selected_meal}, recommend an exercise plan.", source="user")],
+            cancellation_token=CancellationToken(),
+        )
+        exercise_plan = json.loads((response.chat_message.content).json())
+        print(f"Exercise Plan: {exercise_plan}")
+
+        return exercise_plan
+    except Exception as e:
+        print(f"Error in run_agents: {e}")
+        raise
 # asyncio.run(run_agents())

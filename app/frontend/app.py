@@ -189,6 +189,7 @@ elif page == "Nutrition":
     """)
     if "menu_options" not in st.session_state:
         st.session_state.menu_options = []
+
     def fetch_menu():
         """
         POST /nutrition_management returns a new menu list.
@@ -196,25 +197,83 @@ elif page == "Nutrition":
         try:
             response = requests.post(f"{BACKEND_URL}/nutrition_management", timeout=60)
             response.raise_for_status()
-            return response.json().get("results", {})
+            data = response.json().get("results", {})
+
+            st.session_state["nutrition_considerations"] = data.get("nutrition_considerations", {})
+            st.session_state["dietary_advice"] = data.get("dietary_advice", "No dietary advice available.")
+
+            return data
         except requests.exceptions.RequestException as e:
             st.error(f"Error Fetching Menu: {e}")
             st.error(traceback.format_exc())
             return []
 
+    def render_menu(p_menu_options, nutrition_considerations, dietary_advice):
+
+        st.subheader("Nutrition Considerations:")
+        for key, value in nutrition_considerations.items():
+            st.markdown(f"**{key.replace('_', ' ').capitalize()}:** {value}")
+        
+        st.subheader("Dietary Advice:")
+        st.markdown(dietary_advice)
+
+        st.subheader("Nutrition Recommander:")
+        columns = st.columns(len(p_menu_options))
+        for idx, (col, menu) in enumerate(zip(columns, p_menu_options), start=1):
+            with col:
+                st.markdown(f"**{idx}. {menu['menu_name']}**")
+                st.markdown("Included items:")
+                for item in menu["item"]:
+                    st.write(f"- {item['food']} ({item['calories']} kcal)")
+                st.markdown(f"**Total Calories: {menu['total_calories']} kcal**")
+                st.button("Select", key=f"select_{idx}", on_click=get_exercise_target, args=(menu, idx))
+        st.markdown("---")
+
+        if "current_exercise_result" in st.session_state:
+            exercise_result = st.session_state["current_exercise_result"]
+            st.subheader("Exercise Recommendation:")
+            if "error" in exercise_result:
+                st.error(f"Error: {exercise_result['error']}")
+            else:
+                st.markdown(f"**Recommended Exercise:** {exercise_result.get('recommended_exercise', 'N/A')}")
+                st.markdown(f"**Duration (minutes):** {exercise_result.get('duration_minutes', 'N/A')}")
+                st.markdown(f"**Calories to Burn:** {exercise_result.get('calories_to_burn', 'N/A')}")
+                st.markdown(f"**Advice:** {exercise_result.get('advice', 'N/A')}")
+
+    def get_exercise_target(p_menu, idx):
+        try:
+            payload = {
+                "selected_meal": {
+                    "menu_name": p_menu["menu_name"],
+                    "total_calories": p_menu["total_calories"]
+                }
+            }
+            response = requests.post(f"{BACKEND_URL}/activity_accessment", json=payload, timeout=60)
+            response.raise_for_status()
+            result = response.json().get("results", {})
+
+            st.session_state["current_exercise_result"] = result
+        except requests.exceptions.RequestException as e:
+            st.error(f"Error Fetching Menu: {e}")
+            st.error(traceback.format_exc())
+            return []
+        
     def render_all_menus():
         """
-        渲染所有已保存的菜單
+        render all menus in the session state.
         """
+        nutrition_considerations = st.session_state.get("nutrition_considerations", {})
+        dietary_advice = st.session_state.get("dietary_advice", "No dietary advice available.")
+
         for idx, menu_options in enumerate(st.session_state.menu_options, start=1):
-            app_func.render_menu(menu_options)
+            render_menu(menu_options, nutrition_considerations, dietary_advice)
 
     if st.button("Generate New Menu"):
         with st.spinner("Fetching a new menu..."):
-            new_menu = fetch_menu()
+            nutrition_data = fetch_menu()
             app_func.draw_consumption_intake_chart()
             app_func.draw_sleep_chart()
-            if new_menu:
-                st.session_state.menu_options.append(new_menu)
+            if nutrition_data:
+                st.session_state.menu_options.append(nutrition_data.get("meal_options", []))
 
     render_all_menus()

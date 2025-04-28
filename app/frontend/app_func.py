@@ -1,25 +1,11 @@
+import requests
+import traceback
 import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
 
-import pandas as pd
-import streamlit as st
-import plotly.graph_objects as go
 
-def render_menu(p_menu_options):
-    st.subheader("Nutrition Recommander:")
-    columns = st.columns(len(p_menu_options))
-    for idx, (col, menu) in enumerate(zip(columns, p_menu_options), start=1):
-        with col:
-            st.markdown(f"**{idx}. {menu['menu_name']}**")
-            st.markdown("Included items:")
-            for item in menu["item"]:
-                st.write(f"- {item['food']} ({item['calories']} kcal)")
-            st.markdown(f"**Total Calories: {menu['total_calories']} kcal**")
-    st.markdown("---")
-            
 def draw_consumption_intake_chart():
-    # 資料
     data = [
         {'day': 1, 'consumption': 120, 'intake': 200},
         {'day': 2, 'consumption': 70, 'intake': 400},
@@ -30,13 +16,12 @@ def draw_consumption_intake_chart():
         {'day': 7, 'consumption': 200, 'intake': 137},
     ]
 
-    # 將資料轉換為 DataFrame
     df = pd.DataFrame(data)
 
-    # 繪製圖表
+    # draw the chart
     fig = go.Figure()
 
-    # 條形圖：每天的消耗量
+    # bar chart: daily consumption
     fig.add_trace(go.Bar(
         x=df['day'],
         y=df['consumption'],
@@ -44,7 +29,7 @@ def draw_consumption_intake_chart():
         marker_color='skyblue'
     ))
 
-    # 折線圖：每天的攝取量
+    # line chart: daily intake
     fig.add_trace(go.Scatter(
         x=df['day'],
         y=df['intake'],
@@ -53,7 +38,7 @@ def draw_consumption_intake_chart():
         line=dict(color='orange')
     ))
 
-    # 更新圖表佈局
+    # update layout
     fig.update_layout(
         title='Weekly Consumption and Intake Analysis',
         xaxis_title='Day of the Week',
@@ -63,7 +48,6 @@ def draw_consumption_intake_chart():
     )
 
     st.plotly_chart(fig)
-
 
 def draw_sleep_chart():
     data = [
@@ -75,16 +59,15 @@ def draw_sleep_chart():
         {'day': 6, 'time_in_bed': 9, 'bed_time': '22:00'},
         {'day': 7, 'time_in_bed': 2, 'bed_time': '22:00'},
     ]
-    avg = 40 / 7  # 每日平均睡眠量
-    recommendation = 50 / 7  # 每日建議睡眠量
+    avg = 40 / 7  # average sleep
+    recommendation = 50 / 7  # average recommendation
 
-    # 將資料轉換為 DataFrame
     df = pd.DataFrame(data)
 
-    # 繪製圖表
+    # draw the chart
     fig = go.Figure()
 
-    # 條形圖：每天的睡眠時間
+    # bar chart: time in bed
     fig.add_trace(go.Bar(
         x=df['day'],
         y=df['time_in_bed'],
@@ -92,7 +75,7 @@ def draw_sleep_chart():
         marker_color='skyblue'
     ))
 
-    # 折線圖：平均睡眠量
+    # line chart: average sleep
     fig.add_trace(go.Scatter(
         x=df['day'],
         y=[avg] * len(df),
@@ -101,7 +84,7 @@ def draw_sleep_chart():
         line=dict(color='orange', dash='dash')
     ))
 
-    # 折線圖：建議睡眠量
+    # line chart: recommended sleep
     fig.add_trace(go.Scatter(
         x=df['day'],
         y=[recommendation] * len(df),
@@ -110,7 +93,7 @@ def draw_sleep_chart():
         line=dict(color='green', dash='dash')
     ))
 
-    # 更新圖表佈局
+    # update layout
     fig.update_layout(
         title='Weekly Sleep Analysis',
         xaxis_title='Day of the Week',
@@ -119,5 +102,5 @@ def draw_sleep_chart():
         template='plotly_white'
     )
 
-    # 在 Streamlit 中顯示圖表
+    # display the chart
     st.plotly_chart(fig)

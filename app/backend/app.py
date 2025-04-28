@@ -12,7 +12,7 @@ from backend.agents import setup_agents
 from backend.group_summary_chat import run_group_health_chat
 from core.activity_agent import run_activity_agent
 from core.sleep_agent import run_sleep_agent
-from agents_CHIA import run_agents
+from agents_CHIA import run_nutrition_agents, run_atvacc_agent
 # Load environment variables
 load_dotenv()
 
@@ -133,7 +133,7 @@ def nutrition_agent():
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        result = loop.run_until_complete(run_agents()) 
+        result = loop.run_until_complete(run_nutrition_agents()) 
         return jsonify({
             "status": "success",
             "results": result
@@ -144,7 +144,25 @@ def nutrition_agent():
             "error": str(e)
         }), 500
 
+@app.route('/activity_accessment', methods=['POST'])
+def atv_agent():
+    try:
+        data = request.get_json()
+        if not data or "selected_meal" not in data:
+            return jsonify({"error": "Missing 'selected_meal' in request"}), 400
 
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(run_atvacc_agent(data)) 
+        return jsonify({
+            "status": "success",
+            "results": result
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e)
+        }), 500
 
 # Main server startup
 if __name__ == '__main__':
